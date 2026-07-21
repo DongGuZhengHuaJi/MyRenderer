@@ -1,7 +1,8 @@
 #include "window/RenderViewport.h"
-#include "render/Vertex.h"
+#include "loader/ModelLoder.h"
 #include <QKeyEvent>
 #include <QDebug>
+#include <memory>
 
 
 RenderViewport::RenderViewport(QWidget *parent)
@@ -87,54 +88,13 @@ void RenderViewport::initShaders() {
 }
 
 void RenderViewport::initGeometry() {
-    // 立方体 6 个面，每面 4 个顶点（位置 + 法线），共 24 个顶点
-    std::vector<Vertex> vertices = {
-        // 前面 (normal: 0, 0, 1)
-        {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-        // 后面 (normal: 0, 0, -1)
-        {{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
-        {{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
-        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
-        // 顶面 (normal: 0, 1, 0)
-        {{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        // 底面 (normal: 0, -1, 0)
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}},
-        {{ 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}},
-        {{ 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}},
-        {{-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}},
-        // 右面 (normal: 1, 0, 0)
-        {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-        // 左面 (normal: -1, 0, 0)
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
-        {{-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}},
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}},
-        {{-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
-    };
-
-    // 每个面 2 个三角形，6 个索引
-    std::vector<unsigned int> indices;
-    for (unsigned int face = 0; face < 6; ++face) {
-        unsigned int base = face * 4;
-        indices.insert(indices.end(), {
-            base, base + 1, base + 2,
-            base + 2, base + 3, base
-        });
+    auto model = ModelLoader::load("models/spot_triangulated.obj",
+                                   static_cast<QOpenGLFunctions_4_5_Core*>(this));
+    if (model) {
+        m_scene.addModel(std::move(model));
+    } else {
+        qCritical() << "Failed to load model.";
     }
-
-    auto model = std::make_shared<Model>();
-    model->m_meshes.emplace_back(
-        static_cast<QOpenGLFunctions_4_5_Core*>(this), vertices, indices);
-    m_scene.addModel(std::move(model));
 }
 
 void RenderViewport::keyPressEvent(QKeyEvent *event) {
