@@ -6,6 +6,7 @@
 #include <QTimer>
 #include "scene/Camera.h"
 #include "render/Renderer.h"
+#include "scene/Scene.h"
 
 
 class RenderViewport : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core
@@ -24,6 +25,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
     void initShaders();
@@ -36,8 +38,8 @@ private:
 
     Camera m_camera;                        // 摄像机对象
 
-    Model m_model;                          // 模型对象
-    
+    Scene m_scene;                          // 场景对象
+
     Shader m_shader;                        // 着色器对象
 
     QPoint m_lastMousePos; // 记录上一次鼠标位置

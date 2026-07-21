@@ -72,10 +72,10 @@ void RenderViewport::paintGL()
     // 每帧递增旋转角度（约 60 FPS，每帧约 1 度）
     m_rotationAngle += 1.0f;
     if (m_rotationAngle >= 360.0f) m_rotationAngle -= 360.0f;
-    m_model.m_transform.rotation.y = m_rotationAngle;
 
-    if (m_renderer) {
-        m_renderer->render(m_model, m_camera, m_shader);
+    for (auto& model : m_scene.getModels()) {
+        model->m_transform.rotation.y = m_rotationAngle;
+        m_renderer->render(*model, m_camera, m_shader);
     }
 }
 
@@ -88,38 +88,37 @@ void RenderViewport::initShaders() {
 
 void RenderViewport::initGeometry() {
     // 立方体 6 个面，每面 4 个顶点（位置 + 法线），共 24 个顶点
-    // 顶点格式: 前 3 个 float = 位置，后 3 个 float = 法线
     std::vector<Vertex> vertices = {
         // 前面 (normal: 0, 0, 1)
-        {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
-        {{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
-        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
-        {{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
+        {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
         // 后面 (normal: 0, 0, -1)
-        {{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
-        {{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
-        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
         // 顶面 (normal: 0, 1, 0)
-        {{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {}},
-        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {}},
-        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {}},
-        {{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {}},
+        {{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
         // 底面 (normal: 0, -1, 0)
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {}},
-        {{ 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {}},
-        {{ 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {}},
-        {{-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {}},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}},
         // 右面 (normal: 1, 0, 0)
-        {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {}},
-        {{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {}},
-        {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {}},
-        {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {}},
+        {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
         // 左面 (normal: -1, 0, 0)
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
-        {{-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
-        {{-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
     };
 
     // 每个面 2 个三角形，6 个索引
@@ -132,7 +131,10 @@ void RenderViewport::initGeometry() {
         });
     }
 
-    m_model.m_meshes.emplace_back(static_cast<QOpenGLFunctions_4_5_Core*>(this), vertices, indices);
+    auto model = std::make_shared<Model>();
+    model->m_meshes.emplace_back(
+        static_cast<QOpenGLFunctions_4_5_Core*>(this), vertices, indices);
+    m_scene.addModel(std::move(model));
 }
 
 void RenderViewport::keyPressEvent(QKeyEvent *event) {
@@ -158,8 +160,15 @@ void RenderViewport::keyPressEvent(QKeyEvent *event) {
     }
 }
 
+void RenderViewport::wheelEvent(QWheelEvent *event) {
+    float delta = event->angleDelta().y() / 120.0f; // 每格滚轮为 120
+    
+    m_camera.position = m_camera.position - m_camera.front * m_cameraSpeed * delta;
+
+    update();
+}
+
 void RenderViewport::mousePressEvent(QMouseEvent *event) {
-    // 预留：记录鼠标初始点击位置
     m_lastMousePos = event->pos();
     m_firstMousePress = false;
 }
