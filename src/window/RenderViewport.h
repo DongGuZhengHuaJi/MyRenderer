@@ -46,6 +46,8 @@ private:
 
     float m_cameraSpeed = 0.1f; // 摄像机移动速度
 
-    float m_sensitivity = 0.1f; // 鼠标灵敏度
+    float m_sensitivity = 0.05f; // 鼠标灵敏度
+
+    float m_rotationAngle = 0.0f; // 立方体旋转角度
 
 };

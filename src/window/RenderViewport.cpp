@@ -1,7 +1,7 @@
 #include "window/RenderViewport.h"
+#include "render/Vertex.h"
 #include <QKeyEvent>
 #include <QDebug>
-#include <QTime>
 
 
 RenderViewport::RenderViewport(QWidget *parent)
@@ -69,6 +69,11 @@ void RenderViewport::resizeGL(int w, int h)
 
 void RenderViewport::paintGL()
 {
+    // 每帧递增旋转角度（约 60 FPS，每帧约 1 度）
+    m_rotationAngle += 1.0f;
+    if (m_rotationAngle >= 360.0f) m_rotationAngle -= 360.0f;
+    m_model.m_transform.rotation.y = m_rotationAngle;
+
     if (m_renderer) {
         m_renderer->render(m_model, m_camera, m_shader);
     }
@@ -82,7 +87,52 @@ void RenderViewport::initShaders() {
 }
 
 void RenderViewport::initGeometry() {
-    // 初始化几何体
+    // 立方体 6 个面，每面 4 个顶点（位置 + 法线），共 24 个顶点
+    // 顶点格式: 前 3 个 float = 位置，后 3 个 float = 法线
+    std::vector<Vertex> vertices = {
+        // 前面 (normal: 0, 0, 1)
+        {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
+        {{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {}},
+        // 后面 (normal: 0, 0, -1)
+        {{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
+        {{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {}},
+        // 顶面 (normal: 0, 1, 0)
+        {{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {}},
+        {{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {}},
+        // 底面 (normal: 0, -1, 0)
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {}},
+        {{-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {}},
+        // 右面 (normal: 1, 0, 0)
+        {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {}},
+        {{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {}},
+        {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {}},
+        {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {}},
+        // 左面 (normal: -1, 0, 0)
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
+        {{-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
+        {{-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
+        {{-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {}},
+    };
+
+    // 每个面 2 个三角形，6 个索引
+    std::vector<unsigned int> indices;
+    for (unsigned int face = 0; face < 6; ++face) {
+        unsigned int base = face * 4;
+        indices.insert(indices.end(), {
+            base, base + 1, base + 2,
+            base + 2, base + 3, base
+        });
+    }
+
+    m_model.m_meshes.emplace_back(static_cast<QOpenGLFunctions_4_5_Core*>(this), vertices, indices);
 }
 
 void RenderViewport::keyPressEvent(QKeyEvent *event) {
