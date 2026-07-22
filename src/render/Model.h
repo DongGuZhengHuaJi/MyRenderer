@@ -1,7 +1,8 @@
-#pragma once 
+#pragma once
 
 #include "render/Mesh.h"
 #include "scene/Transform.h"
+#include "shader/Shader.h"
 #include <memory>
 #include <vector>
 
@@ -19,8 +20,12 @@ public:
     const std::vector<std::shared_ptr<Mesh>>& getMeshes() const { return m_meshes; }
     void setMeshes(const std::vector<std::shared_ptr<Mesh>>& meshes) { m_meshes = meshes; }
 
-    void draw() {
+    void draw(Shader& shader) {
         for (const auto& mesh : m_meshes) {
+            auto& material = mesh->getMaterial();
+            if (material) {
+                material->bind(shader);
+            }
             mesh->draw();
         }
     }

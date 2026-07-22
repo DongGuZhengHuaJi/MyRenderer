@@ -88,7 +88,7 @@ void RenderViewport::initShaders() {
 }
 
 void RenderViewport::initGeometry() {
-    auto model = ModelLoader::load("models/spot_triangulated.obj",
+    auto model = ModelLoader::load("models/spot_triangulated_good.obj",
                                    static_cast<QOpenGLFunctions_4_5_Core*>(this));
     if (model) {
         m_scene.addModel(std::move(model));

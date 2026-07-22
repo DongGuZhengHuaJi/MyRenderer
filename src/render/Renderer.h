@@ -1,6 +1,6 @@
 #pragma once
 #include "scene/Camera.h"
-#include "shader/shader.h"
+#include "shader/Shader.h"
 #include "render/Model.h"
 
 
@@ -20,8 +20,8 @@ public:
         Matrix4f mvpMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * model.m_transform.getModelMatrix();
         shader.setMatrix4("MVP", mvpMatrix);
 
-        // 4. 绘制模型
-        model.draw();
+        // 4. 绘制模型（内部会绑定每个 mesh 的材质）
+        model.draw(shader);
 
         // 5. 解绑着色器程序
         shader.release();

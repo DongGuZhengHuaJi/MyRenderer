@@ -1,16 +1,19 @@
 #pragma once
 
 #include <GL/gl.h>
+#include <memory>
 #include <qopenglfunctions_4_5_core.h>
 #include <vector>
 
+#include "render/Material.h"
 #include "render/Vertex.h"
 #include <QOpenGLFunctions_4_5_Core>
+#include "render/Material.h"
 
 class Mesh{
 public:
     Mesh() = delete;
-    Mesh(QOpenGLFunctions_4_5_Core* glFunctions, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices) : m_glFunctions(glFunctions), m_vertices(vertices), m_indices(indices) {
+    Mesh(QOpenGLFunctions_4_5_Core* glFunctions, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::shared_ptr<Material>& material = nullptr) : m_glFunctions(glFunctions), m_vertices(vertices), m_indices(indices), m_material(material) {
         setupMesh();
     }
 
@@ -19,6 +22,9 @@ public:
 
     const std::vector<unsigned int>& getIndices() const { return m_indices; }
     void setIndices(const std::vector<unsigned int>& indices) { m_indices = indices; }
+
+    const std::shared_ptr<Material>& getMaterial() const { return m_material; }
+    void setMaterial(const std::shared_ptr<Material>& material) { m_material = material; }
 
 
     void draw() const {
@@ -54,6 +60,8 @@ private:
     std::vector<Vertex> m_vertices;
 
     std::vector<unsigned int> m_indices;
+
+    std::shared_ptr<Material> m_material;
 
     GLuint m_vao;
     GLuint m_vbo;

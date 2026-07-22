@@ -55,6 +55,17 @@ public:
             }
         }
     }
+    
+    void setInt(const char* name, int value) {
+        if (m_shaderProgram) {
+            int location = m_shaderProgram->uniformLocation(name);
+            if (location != -1) {
+                m_glFunctions->glUniform1i(location, value);
+            } else {
+                qWarning() << "Uniform" << name << "not found in shader program.";
+            }
+        }
+    }
 
 private:
     QOpenGLFunctions_4_5_Core* m_glFunctions;
