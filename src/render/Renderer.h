@@ -1,31 +1,40 @@
 #pragma once
-#include "scene/Camera.h"
+#include "math/Matrix4f.h"
 #include "shader/Shader.h"
-#include "render/Model.h"
-
+#include "scene/Scene.h"
+#include "scene/SceneNode.h"
+#include "scene/ModelNode.h"
 
 class Renderer {
 public:
     Renderer() = default;
     ~Renderer() = default;
-    void render(Model& model, Camera& camera, Shader& shader) {
-        // 1. 清空屏幕缓冲区和深度缓冲区
-        glClearColor(0.1f, 0.15f, 0.2f, 1.0f); // 优雅的深蓝色背景
+    void renderScene(Scene& scene, Shader& shader) {
+        glClearColor(0.1f, 0.15f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // 2. 激活着色器程序
+        auto* camNode = scene.getActiveCamera();
+        if (!camNode) return;
+
         shader.bind();
-
-        // 3. 设置 MVP 矩阵
-        Matrix4f mvpMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * model.m_transform.getModelMatrix();
-        shader.setMatrix4("MVP", mvpMatrix);
-
-        // 4. 绘制模型（内部会绑定每个 mesh 的材质）
-        model.draw(shader);
-
-        // 5. 解绑着色器程序
+        renderNode(*scene.getRoot(), *camNode, shader);
         shader.release();
+    }
 
+    void renderNode(SceneNode& node, CameraNode& camNode, Shader& shader) {
+        if (auto modelNode = dynamic_cast<ModelNode*>(&node)) {
+            if (modelNode->visible && modelNode->m_model && !modelNode->m_model->isEmpty()) {
+                Matrix4f modelMatrix = node.m_transform.getModelMatrix();
+                Matrix4f viewMatrix = camNode.getViewMatrix();
+                Matrix4f projectionMatrix = camNode.getProjectionMatrix();
+                Matrix4f mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
+                shader.setMatrix4("MVP", mvpMatrix);
+                modelNode->m_model->draw(shader);
+            }
+        }
+        for (auto& child : node.m_children) {
+            renderNode(*child, camNode, shader);
+        }
     }
 
 };

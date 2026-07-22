@@ -2,9 +2,8 @@
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_5_Core>
-#include <QOpenGLShaderProgram>
 #include <QTimer>
-#include "scene/Camera.h"
+#include <memory>
 #include "render/Renderer.h"
 #include "scene/Scene.h"
 
@@ -17,6 +16,22 @@ public:
     explicit RenderViewport(QWidget *parent = nullptr);
     ~RenderViewport() override;
 
+    Scene& getScene() { return m_scene; }
+    const Scene& getScene() const { return m_scene; }
+
+public slots:
+    void loadModel(const QString& filePath);
+    void removeSelectedModel(SceneNode* node);
+    void selectModel(SceneNode* node);
+    void setWireframe(bool enabled);
+    void resetCamera();
+    void setModelTransform(SceneNode* node, float px, float py, float pz,
+                           float rx, float ry, float rz,
+                           float sx, float sy, float sz);
+
+signals:
+    void sceneChanged();
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
@@ -25,31 +40,24 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
 private:
     void initShaders();
-    void initGeometry();
 
 private:
-    QTimer* m_timer;                        // 驱动帧率刷新的定时器
+    QTimer* m_timer = nullptr;
+    std::unique_ptr<Renderer> m_renderer;
+    Scene m_scene;
+    Shader m_shader;
 
-    Renderer* m_renderer;                   // 渲染器对象
-
-    Camera m_camera;                        // 摄像机对象
-
-    Scene m_scene;                          // 场景对象
-
-    Shader m_shader;                        // 着色器对象
-
-    QPoint m_lastMousePos; // 记录上一次鼠标位置
-
-    bool m_firstMousePress = true; // 标记是否是第一次鼠标按下事件
-
-    float m_cameraSpeed = 0.1f; // 摄像机移动速度
-
-    float m_sensitivity = 0.05f; // 鼠标灵敏度
-
-    float m_rotationAngle = 0.0f; // 立方体旋转角度
-
+    QPoint m_lastMousePos;
+    bool m_firstMousePress = true;
+    bool m_leftMousePressed = false;
+    bool m_rightMousePressed = false;
+    float m_cameraSpeed = 0.1f;
+    float m_sensitivity = 0.05f;
+    float m_modelRotateSpeed = 2.0f;
+    bool m_wireframe = false;
 };

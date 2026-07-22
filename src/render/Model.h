@@ -1,7 +1,6 @@
 #pragma once
 
 #include "render/Mesh.h"
-#include "scene/Transform.h"
 #include "shader/Shader.h"
 #include <memory>
 #include <vector>
@@ -9,10 +8,8 @@
 class Model {
 public:
 
+    std::string m_name;
     std::vector<std::shared_ptr<Mesh>> m_meshes;
-    Transform m_transform;
-
-
 
     Model() = default;
     Model(const std::vector<std::shared_ptr<Mesh>>& meshes) : m_meshes(meshes) {}
@@ -28,5 +25,9 @@ public:
             }
             mesh->draw();
         }
+    }
+
+    bool isEmpty() const {
+        return m_meshes.empty();
     }
 };

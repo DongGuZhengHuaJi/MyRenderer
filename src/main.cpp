@@ -1,6 +1,5 @@
 #include <QApplication>
 #include <QMainWindow>
-#include "window/RenderViewport.h"
 #include "ui/MainWindow.h"
 
 int main(int argc, char *argv[])

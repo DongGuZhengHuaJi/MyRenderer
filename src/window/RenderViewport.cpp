@@ -1,22 +1,20 @@
 #include "window/RenderViewport.h"
 #include "loader/ModelLoder.h"
+#include "scene/ModelNode.h"
 #include <QKeyEvent>
 #include <QDebug>
+#include <QFileInfo>
+#include <QWheelEvent>
+#include <QMouseEvent>
 #include <memory>
 
 
 RenderViewport::RenderViewport(QWidget *parent)
     : QOpenGLWidget(parent),
-      m_renderer(nullptr),
-      m_shader(this)  // 将当前对象的 OpenGL 函数指针传递给 Shader
+      m_shader(this)
 {
-    // 强制聚焦，以便让窗口优先接收键盘事件
     setFocusPolicy(Qt::StrongFocus);
 
-    // 启用鼠标追踪，即使没有按下鼠标按钮也能接收 mouseMoveEvent
-    // setMouseTracking(true); 
-
-    // 设置定时器，每 16ms 触发一次 update()，驱动 paintGL 循环（约 60 FPS）
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, QOverload<>::of(&RenderViewport::update));
     m_timer->start(16);
@@ -24,23 +22,13 @@ RenderViewport::RenderViewport(QWidget *parent)
 
 RenderViewport::~RenderViewport()
 {
-    // 停止定时器
     if (m_timer) {
         m_timer->stop();
-        delete m_timer;
-        m_timer = nullptr;
-    }
-
-    // 删除渲染器对象
-    if (m_renderer) {
-        delete m_renderer;
-        m_renderer = nullptr;
     }
 }
 
 void RenderViewport::initializeGL()
 {
-    // 关键：初始化当前版本的 OpenGL 函数指针
     if (!initializeOpenGLFunctions()) {
         qCritical() << "Failed to initialize OpenGL functions.";
         return;
@@ -49,88 +37,95 @@ void RenderViewport::initializeGL()
     qDebug() << "OpenGL Version:" << reinterpret_cast<const char*>(glGetString(GL_VERSION));
     qDebug() << "GPU Vendor:" << reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 
-    m_renderer = new Renderer();
+    m_renderer = std::make_unique<Renderer>();
 
-
-    // 开启基础硬件测试
     glEnable(GL_DEPTH_TEST);
 
-    m_camera.aspect = float(width()) / float(height());
+    // 设置默认摄像机的 aspect
+    auto* camNode = m_scene.getActiveCamera();
+    if (camNode) {
+        camNode->m_camera->aspect = float(width()) / float(height());
+    }
 
     initShaders();
-    initGeometry();
 }
 
 void RenderViewport::resizeGL(int w, int h)
 {
-    // 根据视口大小改变，调整显卡视口参数
     glViewport(0, 0, w, h);
-    m_camera.aspect = float(w) / float(h);
+    auto* camNode = m_scene.getActiveCamera();
+    if (camNode) {
+        camNode->m_camera->aspect = float(w) / float(h);
+    }
 }
 
 void RenderViewport::paintGL()
 {
-    // 每帧递增旋转角度（约 60 FPS，每帧约 1 度）
-    m_rotationAngle += 1.0f;
-    if (m_rotationAngle >= 360.0f) m_rotationAngle -= 360.0f;
-
-    for (auto& model : m_scene.getModels()) {
-        model->m_transform.rotation.y = m_rotationAngle;
-        m_renderer->render(*model, m_camera, m_shader);
-    }
+    m_renderer->renderScene(m_scene, m_shader);
 }
 
 void RenderViewport::initShaders() {
-    // 加载着色器（路径对应 CMake 复制后的目标文件夹）
     if (!m_shader.loadShaders("shaders/default.vert", "shaders/default.frag")) {
         qCritical() << "Failed to load shaders.";
     }
 }
 
-void RenderViewport::initGeometry() {
-    auto model = ModelLoader::load("models/spot_triangulated_good.obj",
-                                   static_cast<QOpenGLFunctions_4_5_Core*>(this));
-    if (model) {
-        m_scene.addModel(std::move(model));
-    } else {
-        qCritical() << "Failed to load model.";
-    }
-}
-
 void RenderViewport::keyPressEvent(QKeyEvent *event) {
-    // 预留：处理 WASD 摄像机位移
+    auto* camNode = m_scene.getActiveCamera();
+    if (!camNode) {
+        QOpenGLWidget::keyPressEvent(event);
+        return;
+    }
+
     switch (event->key()) {
         case Qt::Key_W:
-            m_camera.position = m_camera.position + m_camera.front * m_cameraSpeed;
+            camNode->position = camNode->position + camNode->front * m_cameraSpeed;
             break;
         case Qt::Key_S:
-            m_camera.position = m_camera.position - m_camera.front * m_cameraSpeed;
+            camNode->position = camNode->position - camNode->front * m_cameraSpeed;
             break;
         case Qt::Key_A:
-            m_camera.position = m_camera.position - m_camera.right * m_cameraSpeed;
+            camNode->position = camNode->position - camNode->right * m_cameraSpeed;
             break;
         case Qt::Key_D:
-            m_camera.position = m_camera.position + m_camera.right * m_cameraSpeed;
+            camNode->position = camNode->position + camNode->right * m_cameraSpeed;
             break;
         default:
             QOpenGLWidget::keyPressEvent(event);
             break;
-        
+
         update();
     }
 }
 
 void RenderViewport::wheelEvent(QWheelEvent *event) {
-    float delta = event->angleDelta().y() / 120.0f; // 每格滚轮为 120
-    
-    m_camera.position = m_camera.position - m_camera.front * m_cameraSpeed * delta;
+    auto* camNode = m_scene.getActiveCamera();
+    if (!camNode) return;
 
+    float delta = event->angleDelta().y() / 120.0f;
+    camNode->position = camNode->position - camNode->front * m_cameraSpeed * delta;
     update();
 }
 
 void RenderViewport::mousePressEvent(QMouseEvent *event) {
     m_lastMousePos = event->pos();
     m_firstMousePress = false;
+
+    if (event->button() == Qt::LeftButton) {
+        m_leftMousePressed = true;
+        m_rightMousePressed = false;
+    } else if (event->button() == Qt::RightButton) {
+        m_rightMousePressed = true;
+        m_leftMousePressed = false;
+    }
+}
+
+void RenderViewport::mouseReleaseEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+        m_leftMousePressed = false;
+    } else if (event->button() == Qt::RightButton) {
+        m_rightMousePressed = false;
+    }
 }
 
 void RenderViewport::mouseMoveEvent(QMouseEvent *event) {
@@ -141,20 +136,110 @@ void RenderViewport::mouseMoveEvent(QMouseEvent *event) {
     }
 
     QPoint currentPos = event->pos();
-
     float dx = float(m_lastMousePos.x() - currentPos.x()) * m_sensitivity;
-    float dy = float(currentPos.y() - m_lastMousePos.y()) * m_sensitivity; // 注意 Y 轴方向
+    float dy = float(currentPos.y() - m_lastMousePos.y()) * m_sensitivity;
+    m_lastMousePos = currentPos;
 
-    m_lastMousePos = currentPos; // 更新鼠标位置
+    if (m_leftMousePressed) {
+        // 左键：旋转摄像机
+        auto* camNode = m_scene.getActiveCamera();
+        if (camNode) {
+            camNode->yaw += dx;
+            camNode->pitch += dy;
+            if (camNode->pitch > 89.0f) camNode->pitch = 89.0f;
+            if (camNode->pitch < -89.0f) camNode->pitch = -89.0f;
+            camNode->updateCameraVectors();
+        }
+    } else if (m_rightMousePressed) {
+        // 右键：旋转选中的模型节点
+        auto nodePtr = m_scene.getSelectedNode();
+        if (nodePtr) {
+            nodePtr->m_transform.rotation.y -= dx * m_modelRotateSpeed;
+            nodePtr->m_transform.rotation.x += dy * m_modelRotateSpeed;
+            emit sceneChanged();  // 通知 UI 更新 Inspector
+        }
+    }
 
-    m_camera.yaw += dx;
-    m_camera.pitch += dy;
+    update();
+}
 
-    if (m_camera.pitch > 89.0f) m_camera.pitch = 89.0f;
-    if (m_camera.pitch < -89.0f) m_camera.pitch = -89.0f;
+// --- public slots ---
 
-    m_camera.updateCameraVectors();
+void RenderViewport::loadModel(const QString& filePath) {
+    QFileInfo fi(filePath);
+    if (!fi.exists()) {
+        qWarning() << "File not found:" << filePath;
+        return;
+    }
 
-    update(); // 触发重绘
+    makeCurrent();
+    auto model = ModelLoader::load(
+        filePath.toStdString(),
+        static_cast<QOpenGLFunctions_4_5_Core*>(this));
+    doneCurrent();
 
+    if (model) {
+        m_scene.getRoot()->addChild(
+            std::make_shared<ModelNode>(fi.baseName().toStdString(), model));
+        emit sceneChanged();
+        qDebug() << "Loaded model:" << filePath;
+    } else {
+        qWarning() << "Failed to load model:" << filePath;
+    }
+}
+
+void RenderViewport::selectModel(SceneNode* node) {
+    m_scene.selectNode(node);
+    update();
+}
+
+void RenderViewport::removeSelectedModel(SceneNode* node) {
+    if (!node) return;
+    auto& children = m_scene.getRoot()->m_children;
+    auto it = std::find_if(children.begin(), children.end(),
+        [node](const std::shared_ptr<SceneNode>& child) {
+            return child.get() == node;
+        });
+    if (it != children.end()) {
+        children.erase(it);
+        emit sceneChanged();
+    }
+}
+
+void RenderViewport::setWireframe(bool enabled) {
+    m_wireframe = enabled;
+    makeCurrent();
+    if (enabled) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    } else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+    doneCurrent();
+    update();
+}
+
+void RenderViewport::resetCamera() {
+    auto* camNode = m_scene.getActiveCamera();
+    if (!camNode) return;
+    camNode->reset();
+    camNode->m_camera->aspect = float(width()) / float(height());
+    update();
+}
+
+void RenderViewport::setModelTransform(SceneNode* node,
+                                        float px, float py, float pz,
+                                        float rx, float ry, float rz,
+                                        float sx, float sy, float sz) {
+    if (!node) return;
+    auto& t = node->m_transform;
+    t.position.x = px;
+    t.position.y = py;
+    t.position.z = pz;
+    t.rotation.x = rx;
+    t.rotation.y = ry;
+    t.rotation.z = rz;
+    t.scale.x = sx;
+    t.scale.y = sy;
+    t.scale.z = sz;
+    update();
 }

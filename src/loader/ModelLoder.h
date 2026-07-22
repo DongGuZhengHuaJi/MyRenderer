@@ -29,7 +29,11 @@ public:
     // 提取文件所在目录，供后续加载纹理时拼接路径
     std::string directory = path.substr(0, path.find_last_of('/') + 1);
 
+    // 提取文件名作为模型名称
+    std::string name = path.substr(path.find_last_of('/') + 1);
+
     auto model = std::make_shared<Model>();
+    model->m_name = name;
 
     processNode(scene->mRootNode, scene, model, gl, directory);
 
