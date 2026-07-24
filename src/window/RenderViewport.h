@@ -18,6 +18,7 @@ public:
 
     Scene& getScene() { return m_scene; }
     const Scene& getScene() const { return m_scene; }
+    QOpenGLFunctions_4_5_Core* gl() { return this; }
 
 public slots:
     void loadModel(const QString& filePath);
@@ -30,7 +31,11 @@ public slots:
                            float sx, float sy, float sz);
 
 signals:
-    void sceneChanged();
+        // 场景结构发生变化（增删节点、重命名）
+    void sceneStructureChanged();
+
+    // 当前节点属性发生变化（位置、旋转、缩放等）
+    void inspectorChanged(SceneNode* node);
 
 protected:
     void initializeGL() override;
@@ -53,7 +58,6 @@ private:
     Shader m_shader;
 
     QPoint m_lastMousePos;
-    bool m_firstMousePress = true;
     bool m_leftMousePressed = false;
     bool m_rightMousePressed = false;
     float m_cameraSpeed = 0.1f;

@@ -19,7 +19,7 @@ public:
     Vector3f up;
     Vector3f right;
 
-    bool isActive = true;
+    bool isActive = false;
     std::shared_ptr<Camera> m_camera;
 
     void updateCameraVectors() {

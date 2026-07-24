@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1317</width>
-    <height>944</height>
+    <height>931</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,13 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4,2">
       <item>
-       <widget class="QTreeWidget" name="sceneTree"/>
+       <widget class="QTreeWidget" name="sceneTree">
+        <column>
+         <property name="text">
+          <string notr="true">1</string>
+         </property>
+        </column>
+       </widget>
       </item>
       <item>
        <widget class="RenderViewport" name="openGLWidget"/>
@@ -34,7 +40,7 @@
            <x>0</x>
            <y>0</y>
            <width>365</width>
-           <height>605</height>
+           <height>596</height>
           </rect>
          </property>
         </widget>
@@ -103,15 +109,18 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionOpenModel"/>
+   <addaction name="actionAddNode"/>
    <addaction name="actionSave"/>
    <addaction name="actionWireFrame"/>
    <addaction name="actionLight"/>
    <addaction name="actionResetCamera"/>
   </widget>
-  <action name="actionOpenModel">
+  <action name="actionAddNode">
    <property name="text">
-    <string>OpenModel</string>
+    <string>AddNode</string>
+   </property>
+   <property name="toolTip">
+    <string>AddNode</string>
    </property>
   </action>
   <action name="actionSave">

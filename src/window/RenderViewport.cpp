@@ -1,6 +1,5 @@
 #include "window/RenderViewport.h"
-#include "loader/ModelLoder.h"
-#include "scene/ModelNode.h"
+#include "scene/NodeFactory.h"
 #include <QKeyEvent>
 #include <QDebug>
 #include <QFileInfo>
@@ -80,15 +79,19 @@ void RenderViewport::keyPressEvent(QKeyEvent *event) {
     switch (event->key()) {
         case Qt::Key_W:
             camNode->position = camNode->position + camNode->front * m_cameraSpeed;
+            emit inspectorChanged(camNode);
             break;
         case Qt::Key_S:
             camNode->position = camNode->position - camNode->front * m_cameraSpeed;
+            emit inspectorChanged(camNode);
             break;
         case Qt::Key_A:
             camNode->position = camNode->position - camNode->right * m_cameraSpeed;
+            emit inspectorChanged(camNode);
             break;
         case Qt::Key_D:
             camNode->position = camNode->position + camNode->right * m_cameraSpeed;
+            emit inspectorChanged(camNode);
             break;
         default:
             QOpenGLWidget::keyPressEvent(event);
@@ -96,6 +99,7 @@ void RenderViewport::keyPressEvent(QKeyEvent *event) {
 
         update();
     }
+    
 }
 
 void RenderViewport::wheelEvent(QWheelEvent *event) {
@@ -109,7 +113,7 @@ void RenderViewport::wheelEvent(QWheelEvent *event) {
 
 void RenderViewport::mousePressEvent(QMouseEvent *event) {
     m_lastMousePos = event->pos();
-    m_firstMousePress = false;
+
 
     if (event->button() == Qt::LeftButton) {
         m_leftMousePressed = true;
@@ -129,81 +133,79 @@ void RenderViewport::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void RenderViewport::mouseMoveEvent(QMouseEvent *event) {
-    if (m_firstMousePress) {
-        m_lastMousePos = event->pos();
-        m_firstMousePress = false;
-        return;
+  float dx = (event->x() - m_lastMousePos.x()) * m_sensitivity;
+  float dy = (m_lastMousePos.y() - event->y()) * m_sensitivity; // 注意 y 轴方向
+
+  m_lastMousePos = event->pos();
+  if (m_leftMousePressed) {
+    auto *camNode = m_scene.getActiveCamera();
+    if (camNode) {
+      camNode->yaw += dx;
+      camNode->pitch += dy;
+
+      if (camNode->pitch > 89.0f)
+        camNode->pitch = 89.0f;
+      if (camNode->pitch < -89.0f)
+        camNode->pitch = -89.0f;
+
+      camNode->updateCameraVectors();
+
+      emit inspectorChanged(camNode);
     }
+  } else if (m_rightMousePressed) {
+    auto nodePtr = m_scene.getSelectedNode();
 
-    QPoint currentPos = event->pos();
-    float dx = float(m_lastMousePos.x() - currentPos.x()) * m_sensitivity;
-    float dy = float(currentPos.y() - m_lastMousePos.y()) * m_sensitivity;
-    m_lastMousePos = currentPos;
+    if (nodePtr) {
+      nodePtr->m_transform.rotation.y -= dx * m_modelRotateSpeed;
+      nodePtr->m_transform.rotation.x += dy * m_modelRotateSpeed;
 
-    if (m_leftMousePressed) {
-        // 左键：旋转摄像机
-        auto* camNode = m_scene.getActiveCamera();
-        if (camNode) {
-            camNode->yaw += dx;
-            camNode->pitch += dy;
-            if (camNode->pitch > 89.0f) camNode->pitch = 89.0f;
-            if (camNode->pitch < -89.0f) camNode->pitch = -89.0f;
-            camNode->updateCameraVectors();
-        }
-    } else if (m_rightMousePressed) {
-        // 右键：旋转选中的模型节点
-        auto nodePtr = m_scene.getSelectedNode();
-        if (nodePtr) {
-            nodePtr->m_transform.rotation.y -= dx * m_modelRotateSpeed;
-            nodePtr->m_transform.rotation.x += dy * m_modelRotateSpeed;
-            emit sceneChanged();  // 通知 UI 更新 Inspector
-        }
+      emit inspectorChanged(nodePtr.get());
     }
+  }
 
-    update();
+  update();
 }
 
 // --- public slots ---
 
-void RenderViewport::loadModel(const QString& filePath) {
-    QFileInfo fi(filePath);
-    if (!fi.exists()) {
-        qWarning() << "File not found:" << filePath;
-        return;
-    }
+void RenderViewport::loadModel(const QString &filePath) {
+  QFileInfo fi(filePath);
+  if (!fi.exists()) {
+    qWarning() << "File not found:" << filePath;
+    return;
+  }
 
-    makeCurrent();
-    auto model = ModelLoader::load(
-        filePath.toStdString(),
-        static_cast<QOpenGLFunctions_4_5_Core*>(this));
-    doneCurrent();
+  makeCurrent();
+  auto node = NodeFactory::createModelNode(
+      filePath.toStdString(), static_cast<QOpenGLFunctions_4_5_Core *>(this));
+  doneCurrent();
 
-    if (model) {
-        m_scene.getRoot()->addChild(
-            std::make_shared<ModelNode>(fi.baseName().toStdString(), model));
-        emit sceneChanged();
-        qDebug() << "Loaded model:" << filePath;
-    } else {
-        qWarning() << "Failed to load model:" << filePath;
-    }
+  if (node) {
+    m_scene.getRoot()->addChild(node);
+    emit sceneStructureChanged();
+    qDebug() << "Loaded model:" << filePath;
+  } else {
+    qWarning() << "Failed to load model:" << filePath;
+  }
 }
 
-void RenderViewport::selectModel(SceneNode* node) {
-    m_scene.selectNode(node);
-    update();
+void RenderViewport::selectModel(SceneNode *node) {
+  m_scene.selectNode(node);
+  update();
 }
 
-void RenderViewport::removeSelectedModel(SceneNode* node) {
-    if (!node) return;
-    auto& children = m_scene.getRoot()->m_children;
-    auto it = std::find_if(children.begin(), children.end(),
-        [node](const std::shared_ptr<SceneNode>& child) {
-            return child.get() == node;
-        });
-    if (it != children.end()) {
-        children.erase(it);
-        emit sceneChanged();
-    }
+void RenderViewport::removeSelectedModel(SceneNode *node) {
+  if (!node)
+    return;
+  auto &children = m_scene.getRoot()->m_children;
+  auto it = std::find_if(children.begin(), children.end(),
+                         [node](const std::shared_ptr<SceneNode> &child) {
+                           return child.get() == node;
+                         });
+  if (it != children.end()) {
+    children.erase(it);
+    emit sceneStructureChanged();
+  }
 }
 
 void RenderViewport::setWireframe(bool enabled) {
@@ -214,7 +216,14 @@ void RenderViewport::setWireframe(bool enabled) {
     } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
+
+    GLint mode[2];
+    glGetIntegerv(GL_POLYGON_MODE, mode);
+    qDebug() << mode[0] << mode[1];
+
     doneCurrent();
+
+
     update();
 }
 
